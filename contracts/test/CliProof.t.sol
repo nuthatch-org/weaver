@@ -2,11 +2,7 @@
 pragma solidity ^0.8.27;
 
 import {ForkBase} from "./ForkBase.sol";
-
-interface IAuthorizable {
-    function authorizeSigner(address signer, uint256 proofDeadline, bytes calldata proof) external;
-    function isAuthorized(address authorizer, address signer) external view returns (bool);
-}
+import {IRecurringCollector} from "./IRecurringCollector.sol";
 
 /// Proves the Rust `weaver authorize-proof` encoding is the one the deployed contract accepts.
 ///
@@ -14,7 +10,7 @@ interface IAuthorizable {
 /// bytes stop verifying and this fails. That is the whole point: a proof that is subtly wrong is
 /// indistinguishable from a proof that is right, right up until the transaction reverts.
 contract CliProofTest is ForkBase {
-    IAuthorizable constant COLLECTOR = IAuthorizable(0x0B18beFc60455121Ad66Ae6E4A647955FCde3900);
+    IRecurringCollector constant COLLECTOR = IRecurringCollector(0x0B18beFc60455121Ad66Ae6E4A647955FCde3900);
 
     // anvil key #0, a published test key and nothing else.
     address constant ACCOUNT = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;

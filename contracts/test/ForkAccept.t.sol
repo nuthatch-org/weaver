@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.27;
 
-import {Test, console2} from "forge-std/Test.sol";
-import {IRecurringCollector} from "@graphprotocol/interfaces/contracts/horizon/IRecurringCollector.sol";
-import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import {console2} from "forge-std/Test.sol";
+
+import {ForkBase} from "./ForkBase.sol";
+import {IRecurringCollector, EthSignedMessage} from "./IRecurringCollector.sol";
 
 /// @notice Exercises the real DIPS agreement path against the **deployed** `RecurringCollector` on
 ///         Arbitrum Sepolia, via a fork.
@@ -45,7 +46,7 @@ contract ForkAcceptTest is ForkBase {
         bytes32 messageHash = keccak256(
             abi.encodePacked(block.chainid, address(COLLECTOR), "authorizeSignerProof", proofDeadline, payer)
         );
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(payerKey, MessageHashUtils.toEthSignedMessageHash(messageHash));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(payerKey, EthSignedMessage.hash(messageHash));
         vm.prank(payer);
         COLLECTOR.authorizeSigner(payer, proofDeadline, abi.encodePacked(r, s, v));
     }
