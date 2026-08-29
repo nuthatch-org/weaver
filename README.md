@@ -104,9 +104,14 @@ against the deployed `RecurringCollector` on Arbitrum Sepolia, covering the acce
 authorization requirement above, and six ways it is supposed to fail:
 
 ```sh
-export ARBITRUM_SEPOLIA_RPC=https://sepolia-rollup.arbitrum.io/rpc
+git submodule update --init --recursive     # forge-std, the only dependency
+export ARBITRUM_SEPOLIA_RPC_URL=https://sepolia-rollup.arbitrum.io/rpc
 cd contracts && forge test
 ```
+
+Without the variable set the fork suites skip, loudly, rather than fail: a test that cannot reach
+the network has discovered nothing. Both suites read the name from one place, because for a while
+they did not, and a run with the wrong name printed `Suite result: ok` having executed nothing.
 
 Negative tests assert **specific** revert selectors. A bare `vm.expectRevert()` passes for any
 reason at all, including the one the test exists to rule out, which is how the authorization
