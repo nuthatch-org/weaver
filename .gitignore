@@ -1,5 +1,5 @@
-target/
 contracts/lib/
+target/
 contracts/out/
 contracts/cache/
 contracts/broadcast/

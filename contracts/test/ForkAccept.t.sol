@@ -15,7 +15,7 @@ import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/Messa
 ///
 /// Run with:
 ///   ARBITRUM_SEPOLIA_RPC_URL=https://sepolia-rollup.arbitrum.io/rpc forge test --match-path test/ForkAccept.t.sol
-contract ForkAcceptTest is Test {
+contract ForkAcceptTest is ForkBase {
     IRecurringCollector constant COLLECTOR =
         IRecurringCollector(0x0B18beFc60455121Ad66Ae6E4A647955FCde3900);
 
@@ -25,13 +25,7 @@ contract ForkAcceptTest is Test {
     address serviceProvider = makeAddr("indexer");
 
     function setUp() public {
-        // Skips rather than fails when no RPC is configured: a test that cannot reach the network
-        // has not discovered anything, and reporting that as a failure trains people to ignore it.
-        try vm.envString("ARBITRUM_SEPOLIA_RPC_URL") returns (string memory url) {
-            vm.createSelectFork(url);
-        } catch {
-            vm.skip(true);
-        }
+        forkOrSkip();
         (payer, payerKey) = makeAddrAndKey("payer");
     }
 

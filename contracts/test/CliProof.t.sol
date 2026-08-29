@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
-import {Test} from "forge-std/Test.sol";
+import {ForkBase} from "./ForkBase.sol";
 
 interface IAuthorizable {
     function authorizeSigner(address signer, uint256 proofDeadline, bytes calldata proof) external;
@@ -13,7 +13,7 @@ interface IAuthorizable {
 /// The proof below was produced by the CLI and pasted in verbatim. If the Rust changes shape, the
 /// bytes stop verifying and this fails. That is the whole point: a proof that is subtly wrong is
 /// indistinguishable from a proof that is right, right up until the transaction reverts.
-contract CliProofTest is Test {
+contract CliProofTest is ForkBase {
     IAuthorizable constant COLLECTOR = IAuthorizable(0x0B18beFc60455121Ad66Ae6E4A647955FCde3900);
 
     // anvil key #0, a published test key and nothing else.
@@ -25,7 +25,7 @@ contract CliProofTest is Test {
         hex"d260384b7e93cf68ca04a339a5c4161c2ee00fcfa02e0bfff51ed1e57f1a825857a6415d7672416ce0778fc6cafab68e401b7678019d7007ff9437061a89842f1b";
 
     function setUp() public {
-        vm.createSelectFork(vm.envString("ARBITRUM_SEPOLIA_RPC"));
+        forkOrSkip();
         vm.warp(1_900_000_000); // before the deadline the CLI was given
     }
 
