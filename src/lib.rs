@@ -11,4 +11,4 @@
 #![allow(deprecated)]
 
 pub mod rca;
-pub use rca::{domain_separator, Rca};
+pub use rca::{authorization_proof_digest, domain_separator, Rca};

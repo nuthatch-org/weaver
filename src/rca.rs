@@ -346,3 +346,82 @@ mod signing_tests {
         );
     }
 }
+
+// ── Signer authorization ─────────────────────────────────────────────────────
+
+/// Builds the proof `authorizeSigner(signer, deadline, proof)` demands.
+///
+/// # Why this exists
+///
+/// `_isAuthorized(payer, signer)` requires `authorizations[signer].authorizer == payer`. It does
+/// **not** special-case the signer being the payer. So a payer signing their own agreement is
+/// rejected with `RecurringCollectorInvalidSigner()` — an error blaming the signer for a signature
+/// that is cryptographically perfect — until they have authorized their own key once.
+///
+/// Confirmed against the deployed contract on an Arbitrum Sepolia fork: the identical signature
+/// that reverts before `authorizeSigner` is accepted after it.
+///
+/// The proof is a plain `eth_sign` (personal-message prefix), **not** EIP-712, over
+/// `keccak256(chainId ‖ collector ‖ "authorizeSignerProof" ‖ deadline ‖ authorizer)`, signed by the
+/// key being authorized. Note the mixed conventions in one contract: agreements are EIP-712, this
+/// is not.
+pub fn authorization_proof_digest(
+    chain_id: u64,
+    collector: Address,
+    proof_deadline: U256,
+    authorizer: Address,
+) -> B256 {
+    let mut packed = Vec::new();
+    packed.extend_from_slice(&U256::from(chain_id).to_be_bytes::<32>());
+    packed.extend_from_slice(collector.as_slice());
+    packed.extend_from_slice(b"authorizeSignerProof");
+    packed.extend_from_slice(&proof_deadline.to_be_bytes::<32>());
+    packed.extend_from_slice(authorizer.as_slice());
+    let message_hash = keccak256(&packed);
+
+    // toEthSignedMessageHash: the personal-message prefix, applied to a 32-byte hash.
+    let mut prefixed = Vec::with_capacity(28 + 32);
+    prefixed.extend_from_slice(b"\x19Ethereum Signed Message:\n32");
+    prefixed.extend_from_slice(message_hash.as_slice());
+    keccak256(&prefixed)
+}
+
+#[cfg(test)]
+mod authorization_tests {
+    use super::*;
+    use std::str::FromStr;
+
+    fn collector() -> Address {
+        Address::from_str("0x0b18befc60455121ad66ae6e4a647955fcde3900").unwrap()
+    }
+
+    #[test]
+    fn the_proof_is_bound_to_chain_collector_deadline_and_authorizer() {
+        let a = Address::from_str("0x1111111111111111111111111111111111111111").unwrap();
+        let b = Address::from_str("0x2222222222222222222222222222222222222222").unwrap();
+        let base = authorization_proof_digest(421_614, collector(), U256::from(1000), a);
+
+        assert_ne!(base, authorization_proof_digest(42_161, collector(), U256::from(1000), a));
+        assert_ne!(base, authorization_proof_digest(421_614, collector(), U256::from(1001), a));
+        assert_ne!(base, authorization_proof_digest(421_614, collector(), U256::from(1000), b));
+    }
+
+    /// It is a personal-message signature, not EIP-712. Producing the wrong one gives a proof the
+    /// contract rejects for reasons it will not explain.
+    #[test]
+    fn the_proof_is_not_the_eip712_digest() {
+        let a = Address::from_str("0x1111111111111111111111111111111111111111").unwrap();
+        let proof = authorization_proof_digest(421_614, collector(), U256::from(1000), a);
+        let sep = domain_separator(421_614, collector());
+        assert_ne!(proof, sep);
+    }
+
+    #[test]
+    fn a_signed_proof_recovers_to_the_key_being_authorized() {
+        let signer = PrivateKeySigner::random();
+        let authorizer = Address::from_str("0x1111111111111111111111111111111111111111").unwrap();
+        let digest = authorization_proof_digest(421_614, collector(), U256::from(1000), authorizer);
+        let sig = signer.sign_hash_sync(&digest).unwrap();
+        assert_eq!(sig.recover_address_from_prehash(&digest).unwrap(), signer.address());
+    }
+}

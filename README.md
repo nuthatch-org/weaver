@@ -28,6 +28,8 @@ swapping two adjacent same-width fields, each make it fail.
 ## Use
 
 ```sh
+weaver authorize-proof --key payer.key \
+       --authorizer 0x… --deadline 2000000000   # do this FIRST, once, see below
 weaver template > agreement.json          # a starter to edit
 weaver hash   --rca agreement.json        # what the payer will sign
 weaver sign   --rca agreement.json --key payer.key
@@ -47,6 +49,38 @@ result     MISMATCH - accept() will revert
 
 Keys are read from a **file**, never a flag: argv is world-readable on Linux via `/proc`.
 
+## The step nobody expects
+
+**A payer must authorize their own key before any agreement they sign will verify.**
+
+`RecurringCollector` checks signatures through `Authorizable._isAuthorized`:
+
+```solidity
+return (authorizer != address(0) &&
+    $.authorizations[signer].authorizer == authorizer &&
+    !$.authorizations[signer].revoked);
+```
+
+There is no `signer == authorizer` special case. A payer signing their own agreement with their own
+key recovers correctly, matches `payer` exactly, and is still rejected: `authorizations[payer]` is
+empty until someone fills it in. The revert is `RecurringCollectorInvalidSigner()`, which blames the
+signer for a signature that is cryptographically perfect and points at nothing useful.
+
+So, once per key:
+
+```sh
+weaver authorize-proof --key payer.key --authorizer <the payer address> --deadline <unix seconds>
+```
+
+It prints the proof and the `cast send` to go with it. Note the two conventions in one contract:
+agreements are EIP-712, this proof is a plain `eth_sign` over
+`keccak256(chainId ‖ collector ‖ "authorizeSignerProof" ‖ deadline ‖ authorizer)`. Getting the wrong
+one gives you bytes the contract rejects without saying why.
+
+The proof the CLI prints is pasted verbatim into a fork test that sends it to the real contract on
+Arbitrum Sepolia, so the Rust encoding is checked against the deployed bytecode rather than against
+a reading of the source.
+
 ## Deployments
 
 | | Arbitrum One | Arbitrum Sepolia |
@@ -62,5 +96,20 @@ allocation is currently zero.
 Broadcasting. `accept()`, `collect()` and `cancel()` are transactions a data service or an indexer
 sends with their own key; weaver builds and checks the thing that goes into them and deliberately
 stops short of holding anyone's funds.
+
+## Tests
+
+`cargo test` covers the hashing, signing and the proof encoding. `contracts/` holds ten fork tests
+against the deployed `RecurringCollector` on Arbitrum Sepolia, covering the accept path, the
+authorization requirement above, and six ways it is supposed to fail:
+
+```sh
+export ARBITRUM_SEPOLIA_RPC=https://sepolia-rollup.arbitrum.io/rpc
+cd contracts && forge test
+```
+
+Negative tests assert **specific** revert selectors. A bare `vm.expectRevert()` passes for any
+reason at all, including the one the test exists to rule out, which is how the authorization
+requirement stayed hidden through a green run.
 
 Apache-2.0.

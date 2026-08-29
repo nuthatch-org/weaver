@@ -9,6 +9,7 @@
 use std::str::FromStr;
 
 use alloy_primitives::{hex, Address, Signature};
+use alloy_signer::SignerSync;
 use alloy_signer_local::PrivateKeySigner;
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
@@ -44,6 +45,24 @@ enum Cmd {
         /// Linux via /proc.
         #[arg(long)]
         key: std::path::PathBuf,
+        #[command(flatten)]
+        net: Net,
+    },
+    /// Produce the proof `authorizeSigner()` demands.
+    ///
+    /// Run this once per key, before signing anything. A payer signing their own agreement is
+    /// rejected until they have authorized their own key. See the README.
+    AuthorizeProof {
+        /// The key being authorized. It also signs the proof.
+        #[arg(long)]
+        key: std::path::PathBuf,
+        /// The account that will send the `authorizeSigner` transaction. Usually the same address
+        /// as the key, which is the part that surprises people.
+        #[arg(long)]
+        authorizer: String,
+        /// Unix seconds. The contract requires it to be in the future.
+        #[arg(long)]
+        deadline: u64,
         #[command(flatten)]
         net: Net,
     },
@@ -115,6 +134,35 @@ fn main() -> Result<()> {
             println!("signer     {}", signer.address());
             println!("digest     {:#x}", rca.digest(chain, collector));
             println!("signature  0x{}", hex::encode(sig.as_bytes()));
+        }
+        Cmd::AuthorizeProof {
+            key,
+            authorizer,
+            deadline,
+            net,
+        } => {
+            let (chain, collector) = net.resolve()?;
+            let signer = PrivateKeySigner::from_str(std::fs::read_to_string(&key)?.trim())
+                .context("parsing the key file")?;
+            let authorizer = Address::from_str(&authorizer)?;
+            let digest = weaver::authorization_proof_digest(
+                chain,
+                collector,
+                alloy_primitives::U256::from(deadline),
+                authorizer,
+            );
+            let sig = signer.sign_hash_sync(&digest)?;
+            let proof = hex::encode(sig.as_bytes());
+
+            println!("signer      {}", signer.address());
+            println!("authorizer  {authorizer}");
+            println!("deadline    {deadline}");
+            println!("proof       0x{proof}");
+            println!();
+            println!("Send from {authorizer}:");
+            println!("  cast send {collector} \\");
+            println!("    'authorizeSigner(address,uint256,bytes)' \\");
+            println!("    {} {deadline} 0x{proof}", signer.address());
         }
         Cmd::Verify {
             rca,
