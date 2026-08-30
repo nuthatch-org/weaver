@@ -91,6 +91,31 @@ Both confirmed to hold bytecode on 2026-08-29. **The whole path is exercisable o
 gas and GRT are free — which is the point, because on Arbitrum One the DIPS indexing-agreement
 allocation is currently zero.
 
+## The whole path, collected on
+
+`contracts/test/ForkCollect.t.sol` drives DIPS end to end against the **deployed** contracts on
+Arbitrum Sepolia: the payer authorises their own signer, signs an agreement, the data service accepts
+it, the service provider stakes and provisions to that data service, the payer funds escrow, time
+passes, and `collect()` runs. The assertion that matters is the last one: the service provider's GRT
+balance goes up.
+
+This was listed as blocked on funded escrow for two days. **That blocker is real for a broadcast and
+not for a fork** - `deal` mints GRT, and the provision and the escrow deposit are then ordinary calls
+to the real contracts. Nothing is mocked.
+
+Three things it cost, each worth knowing before anyone repeats it:
+
+- **The provision is what makes a data service payable.** `_collect` checks
+  `getProviderTokensAvailable(serviceProvider, dataService) > 0` before paying anything, which is the
+  guard against a signer-as-data-service draining somebody's escrow. Without it everything else is
+  well-formed and the collection is refused, and there is a test for that specifically.
+- **The thawing period is capped at ~2,418,000 seconds**, so 30 days is refused. The revert is a
+  custom error carrying two raw numbers and no name, which reads as opaque until you convert them.
+- **Two Sepolia addresses in circulation were implementations, not proxies.** Calling an
+  implementation does not revert: it returns zero from uninitialised storage, silently, forever. The
+  addresses here are resolved from the Controller, and `setUp` asserts their code size, because a
+  proxy is a few kilobytes and an implementation is tens.
+
 ## What is not here
 
 Broadcasting. `accept()`, `collect()` and `cancel()` are transactions a data service or an indexer
