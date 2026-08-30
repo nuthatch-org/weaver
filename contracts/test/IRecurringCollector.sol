@@ -33,10 +33,9 @@ interface IRecurringCollector {
     error RecurringCollectorAgreementDeadlineElapsed(uint256 currentTimestamp, uint64 deadline);
     error RecurringCollectorUnauthorizedCaller(address unauthorizedCaller, address dataService);
 
-    function accept(
-        RecurringCollectionAgreement calldata rca,
-        bytes calldata signature
-    ) external returns (bytes16 agreementId);
+    function accept(RecurringCollectionAgreement calldata rca, bytes calldata signature)
+        external
+        returns (bytes16 agreementId);
 
     function hashRCA(RecurringCollectionAgreement calldata rca) external view returns (bytes32);
 

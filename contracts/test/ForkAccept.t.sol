@@ -17,8 +17,7 @@ import {IRecurringCollector, EthSignedMessage} from "./IRecurringCollector.sol";
 /// Run with:
 ///   ARBITRUM_SEPOLIA_RPC_URL=https://sepolia-rollup.arbitrum.io/rpc forge test --match-path test/ForkAccept.t.sol
 contract ForkAcceptTest is ForkBase {
-    IRecurringCollector constant COLLECTOR =
-        IRecurringCollector(0x0B18beFc60455121Ad66Ae6E4A647955FCde3900);
+    IRecurringCollector constant COLLECTOR = IRecurringCollector(0x0B18beFc60455121Ad66Ae6E4A647955FCde3900);
 
     uint256 payerKey;
     address payer;
@@ -66,11 +65,7 @@ contract ForkAcceptTest is ForkBase {
         rca.metadata = bytes("weaver fork rehearsal");
     }
 
-    function _sign(IRecurringCollector.RecurringCollectionAgreement memory rca)
-        internal
-        view
-        returns (bytes memory)
-    {
+    function _sign(IRecurringCollector.RecurringCollectionAgreement memory rca) internal view returns (bytes memory) {
         // The digest comes from the contract itself, which is the same guarantee weaver's Rust
         // test relies on: we are not asserting our own arithmetic against our own arithmetic.
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(payerKey, COLLECTOR.hashRCA(rca));

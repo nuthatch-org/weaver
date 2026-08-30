@@ -99,7 +99,7 @@ stops short of holding anyone's funds.
 
 ## Tests
 
-`cargo test` covers the hashing, signing and the proof encoding. `contracts/` holds ten fork tests
+`cargo test` covers the hashing, signing and the proof encoding. `contracts/` holds thirteen fork tests
 against the deployed `RecurringCollector` on Arbitrum Sepolia, covering the accept path, the
 authorization requirement above, and six ways it is supposed to fail:
 
